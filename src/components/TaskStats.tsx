@@ -14,30 +14,55 @@ export const TaskStats: React.FC<TaskStatsProps> = ({ tasks }) => {
   const inProgress = tasks.filter((t) => t.status === 'in_progress').length;
   const done = tasks.filter((t) => t.status === 'done').length;
 
+  const today = new Date();
+  const startOfToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+
+  const overdue = tasks.filter((t) => {
+    if (!t.dueDate) return false;
+    if (t.status === 'done') return false;
+
+    const due = new Date(t.dueDate);
+    if (Number.isNaN(due.getTime())) return false;
+
+    return due < startOfToday;
+  }).length;
+
   return (
     <div
       style={{
-        padding: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '24px',
+        padding: '12px 16px',
         backgroundColor: '#fff',
         borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+        fontSize: '0.9rem',
       }}
     >
-      <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Stats</h2>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '4px' }}>
-        <li>
-          <strong>Total:</strong> {total}
-        </li>
-        <li>
-          <strong>To do:</strong> {todo}
-        </li>
-        <li>
-          <strong>In progress:</strong> {inProgress}
-        </li>
-        <li>
-          <strong>Done:</strong> {done}
-        </li>
-      </ul>
+      <span>
+        <strong>Total:</strong> {total}
+      </span>
+
+      <span>
+        <strong>To do:</strong> {todo}
+      </span>
+
+      <span>
+        <strong>In progress:</strong> {inProgress}
+      </span>
+
+      <span style={{ color: overdue > 0 ? '#dc2626' : '#374151', fontWeight: 600 }}>
+        <strong>Overdue:</strong> {overdue}
+      </span>
+
+      <span>
+        <strong>Done:</strong> {done}
+      </span>
     </div>
   );
 };

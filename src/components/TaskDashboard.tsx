@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import type { Task, TaskCreateInput } from '../constants/types';
 import type { SortField } from './TaskTable';
+import { tasksToCsv, csvToTaskInputs } from '../utils/csv';
 import { TaskStats } from './TaskStats';
 import { TaskTable } from './TaskTable';
 import { TaskForm } from './TaskForm';
 import { ConfirmDialog } from './ConfirmDialog';
 import { fetchTasks, createTask, updateTask, deleteTask } from '../services/tasksApi';
-
-type SortDirection = 'asc' | 'desc';
+import { io, Socket } from 'socket.io-client';
+import { BASE_URL } from '../config/api';
 
 export const TaskDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -22,7 +23,52 @@ export const TaskDashboard: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
 
   const [sortBy, setSortBy] = useState<SortField>('createdAt');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');  
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+
+
+
+  useEffect(() => {
+    // Open WebSocket connection to backend
+    const socket: Socket = io(BASE_URL, {
+      transports: ['websocket'], // prefer websocket
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to WS:', socket.id);
+    });
+
+    // If you implemented tasks:init in backend
+    socket.on('tasks:init', (serverTasks: Task[]) => {
+      setTasks(serverTasks);
+    });
+
+    socket.on('task:created', (task: Task) => {
+      setTasks((prev) => {
+        const exists = prev.some((t) => t.id === task.id);
+        if (exists) return prev; // avoid duplicate if we also updated locally
+        return [...prev, task];
+      });
+    });
+
+    socket.on('task:updated', (task: Task) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? task : t))
+      );
+    });
+
+    socket.on('task:deleted', ({ id }: { id: string }) => {
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from WS');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -57,8 +103,7 @@ export const TaskDashboard: React.FC = () => {
   };
 
   const handleCreateTask = async (input: TaskCreateInput) => {
-    const created = await createTask(input);
-    setTasks((prev) => [...prev, created]);
+    await createTask(input);
   };
 
   const handleUpdateTask = async (input: TaskCreateInput) => {
@@ -77,7 +122,6 @@ export const TaskDashboard: React.FC = () => {
     if (!deleteTarget) return;
     try {
       await deleteTask(deleteTarget.id);
-      setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id));
     } catch (err) {
       console.error(err);
       setError('Failed to delete task.');
@@ -100,7 +144,93 @@ export const TaskDashboard: React.FC = () => {
       setSortDirection('asc');
     }
   };
-  
+
+  const handleToggleTaskSelect = (id: string) => {
+    setSelectedTaskIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleAllVisible = () => {
+    const visibleIds = sortedTasks.map((t) => t.id);
+    const allSelected =
+      visibleIds.length > 0 &&
+      visibleIds.every((id) => selectedTaskIds.includes(id));
+
+    if (allSelected) {
+      setSelectedTaskIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      setSelectedTaskIds((prev) =>
+        Array.from(new Set([...prev, ...visibleIds]))
+      );
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.length === 0) return;
+
+    try {
+      for (const id of selectedTaskIds) {
+        await deleteTask(id);
+      }
+      setTasks((prev) => prev.filter((t) => !selectedTaskIds.includes(t.id)));
+      setSelectedTaskIds([]);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to bulk delete tasks.');
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (sortedTasks.length === 0) return;
+
+    const csv = tasksToCsv(sortedTasks);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'tasks.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportCsv = (file: File) => {
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const inputs = csvToTaskInputs(text);
+
+        if (inputs.length === 0) {
+          setError('CSV file did not contain any valid tasks.');
+          return;
+        }
+
+        const created: Task[] = [];
+        for (const input of inputs) {
+          await createTask(input);
+        }
+
+        setTasks((prev) => [...prev, ...created]);
+        setSelectedTaskIds([]);
+        setError(null);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to import tasks from CSV.');
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+
+
 
   const filteredTasks = tasks.filter((task) => {
     const matchesStatus =
@@ -176,12 +306,18 @@ export const TaskDashboard: React.FC = () => {
               statusFilter={statusFilter}
               sortBy={sortBy}
               sortDirection={sortDirection}
+              selectedTaskIds={selectedTaskIds}
               onSearchChange={setSearchQuery}
               onStatusFilterChange={setStatusFilter}
               onCreateClick={openCreateModal}
               onEditTask={openEditModal}
               onRequestDeleteTask={handleRequestDeleteTask}
               onSortChange={handleSortChange}
+              onToggleTaskSelect={handleToggleTaskSelect}
+              onToggleAllVisible={handleToggleAllVisible}
+              onBulkDelete={handleBulkDelete}
+              onExportCsv={handleExportCsv}
+              onImportCsv={handleImportCsv}
             />
           )}
         </div>
