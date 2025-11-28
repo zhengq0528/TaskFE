@@ -1,20 +1,11 @@
 // src/config/api.ts
 
-// -------------------------------------
-// HTTP BASE URL
-// -------------------------------------
+// HTTP base URL for REST API
+// - Local dev  : falls back to http://localhost:4000
+// - Production : MUST be provided via VITE_API_BASE_URL
 export const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (window.location.hostname === 'localhost'
-    ? 'http://localhost:4000'
-    : window.location.origin);
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
-// -------------------------------------
-// WEBSOCKET URL
-// -------------------------------------
-export const WS_URL =
-  import.meta.env.VITE_WS_URL ||
-  (window.location.hostname === 'localhost'
-    ? 'ws://localhost:4000'
-    : // Auto-generate correct WS URL in production
-      `${window.location.origin.replace(/^http/, 'ws')}`);
+// WebSocket base URL for Socket.IO
+// Reuses BASE_URL and just swaps http/https -> ws/wss
+export const WS_URL = BASE_URL.replace(/^http/, 'ws');

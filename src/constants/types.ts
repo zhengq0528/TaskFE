@@ -12,7 +12,8 @@ export interface Task {
   assignee?: string;
   createdAt: string | null;
   updatedAt: string | null;
-  tags?: string[]; 
+
+  tags?: string[];
 }
 
 export type TaskCreateInput = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;

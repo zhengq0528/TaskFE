@@ -1,7 +1,6 @@
 // src/services/tasksApi.ts
 import type { Task, TaskCreateInput } from '../constants/types';
-
-const BASE_URL = 'http://localhost:4000';
+import { BASE_URL } from '../config/api';
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -52,5 +51,4 @@ export async function deleteTask(id: string): Promise<void> {
     throw new Error(text || 'Failed to delete task.');
   }
 
-  // DELETE returns 204 No Content → no JSON body to parse
 }

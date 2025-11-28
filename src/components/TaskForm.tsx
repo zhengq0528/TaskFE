@@ -44,7 +44,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       setPriority(initialTask.priority ?? DEFAULT_PRIORITY);
       setDueDate(initialTask.dueDate ?? '');
       setAssignee(initialTask.assignee ?? '');
-      setTagsText((initialTask.tags ?? []).join(', ')); 
+      setTagsText((initialTask.tags ?? []).join(', '));
     } else {
       // create mode
       resetForm();
@@ -58,7 +58,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     setPriority(DEFAULT_PRIORITY);
     setDueDate('');
     setAssignee('');
-    setTagsText(''); 
+    setTagsText('');
     setLocalError(null);
   };
 
@@ -73,11 +73,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     setSubmitting(true);
     try {
       const tagsArray =
-      tagsText
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean) || [];
-        
+        tagsText
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean) || [];
+
       const payload: TaskCreateInput = {
         title: title.trim(),
         description: description.trim() || undefined,
@@ -242,8 +242,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
               {submitting
                 ? 'Saving…'
                 : mode === 'create'
-                ? 'Create task'
-                : 'Save changes'}
+                  ? 'Create task'
+                  : 'Save changes'}
             </button>
             <button
               type="button"
