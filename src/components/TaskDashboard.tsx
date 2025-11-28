@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import type { Task, TaskCreateInput } from '../constants/types';
+import type { SortField } from './TaskTable';
 import { TaskStats } from './TaskStats';
 import { TaskTable } from './TaskTable';
 import { TaskForm } from './TaskForm';
 import { ConfirmDialog } from './ConfirmDialog';
 import { fetchTasks, createTask, updateTask, deleteTask } from '../services/tasksApi';
 
-type SortField = 'title' | 'status' | 'priority' | 'dueDate';
 type SortDirection = 'asc' | 'desc';
 
 export const TaskDashboard: React.FC = () => {
@@ -21,8 +21,8 @@ export const TaskDashboard: React.FC = () => {
 
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
 
-  const [sortBy, setSortBy] = useState<SortField>('title');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortBy, setSortBy] = useState<SortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');  
 
   useEffect(() => {
     const load = async () => {
@@ -91,17 +91,16 @@ export const TaskDashboard: React.FC = () => {
   };
 
   const handleSortChange = (field: SortField) => {
-    setSortBy((prevField) => {
-      if (prevField === field) {
-        // just flip direction
-        setSortDirection((prevDir) => (prevDir === 'asc' ? 'desc' : 'asc'));
-        return prevField;
-      }
-      // new field defaults to asc
+    if (sortBy === field) {
+      // same column → flip direction
+      setSortDirection((prevDir) => (prevDir === 'asc' ? 'desc' : 'asc'));
+    } else {
+      // new column → set field + reset to asc
+      setSortBy(field);
       setSortDirection('asc');
-      return field;
-    });
+    }
   };
+  
 
   const filteredTasks = tasks.filter((task) => {
     const matchesStatus =
@@ -129,6 +128,10 @@ export const TaskDashboard: React.FC = () => {
           return (t.priority ?? '').toLowerCase();
         case 'dueDate':
           return t.dueDate ?? '';
+        case 'createdAt':
+          return t.createdAt ?? '';
+        case 'updatedAt':
+          return t.updatedAt ?? '';
         default:
           return '';
       }

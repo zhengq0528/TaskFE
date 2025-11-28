@@ -30,6 +30,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const [assignee, setAssignee] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [tagsText, setTagsText] = useState('');
+
 
   // Populate form when opening in edit mode
   useEffect(() => {
@@ -42,6 +44,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       setPriority(initialTask.priority ?? DEFAULT_PRIORITY);
       setDueDate(initialTask.dueDate ?? '');
       setAssignee(initialTask.assignee ?? '');
+      setTagsText((initialTask.tags ?? []).join(', ')); 
     } else {
       // create mode
       resetForm();
@@ -55,6 +58,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     setPriority(DEFAULT_PRIORITY);
     setDueDate('');
     setAssignee('');
+    setTagsText(''); 
     setLocalError(null);
   };
 
@@ -68,13 +72,20 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
     setSubmitting(true);
     try {
+      const tagsArray =
+      tagsText
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean) || [];
+        
       const payload: TaskCreateInput = {
         title: title.trim(),
         description: description.trim() || undefined,
         status,
         priority,
         assignee: assignee.trim() || undefined,
-        dueDate: dueDate || null,
+        dueDate: dueDate || "",
+        tags: tagsArray.length > 0 ? tagsArray : undefined,
       };
 
       await onSubmit(payload);
@@ -188,6 +199,22 @@ export const TaskForm: React.FC<TaskFormProps> = ({
               className="input"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="task-tags" className="field-label">
+              Tags <span style={{ fontWeight: 400, color: '#64748b' }}>
+                (comma-separated)
+              </span>
+            </label>
+            <input
+              id="task-tags"
+              type="text"
+              placeholder="e.g. backend, api, priority-customer"
+              className="input"
+              value={tagsText}
+              onChange={(e) => setTagsText(e.target.value)}
             />
           </div>
 

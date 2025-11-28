@@ -10,7 +10,9 @@ export interface Task {
   priority?: TaskPriority;
   dueDate: string;
   assignee?: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  tags?: string[]; 
 }
 
-// Payload used when creating a task (no id yet – backend generates it)
-export type TaskCreateInput = Omit<Task, 'id'>;
+export type TaskCreateInput = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
