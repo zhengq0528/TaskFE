@@ -1,5 +1,6 @@
 // src/services/tasksApi.ts
-import { Task, TaskCreateInput } from '../constants/types';
+import type { Task, TaskCreateInput } from '../constants/types';
+
 const BASE_URL = 'http://localhost:4000';
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -25,4 +26,31 @@ export async function createTask(input: TaskCreateInput): Promise<Task> {
 
   const body = await handleResponse<{ data: Task }>(res);
   return body.data;
+}
+
+export async function updateTask(
+  id: string,
+  input: TaskCreateInput
+): Promise<Task> {
+  const res = await fetch(`${BASE_URL}/api/tasks/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+  const body = await handleResponse<{ data: Task }>(res);
+  return body.data;
+}
+
+export async function deleteTask(id: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/tasks/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to delete task.');
+  }
+
+  // DELETE returns 204 No Content → no JSON body to parse
 }

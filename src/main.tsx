@@ -6,6 +6,7 @@ import { TaskDashboard } from './components/TaskDashboard.tsx'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <div className="app-root">
+      
       <TaskDashboard />
     </div>
   </StrictMode>,

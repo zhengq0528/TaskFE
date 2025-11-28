@@ -1,63 +1,143 @@
-// src/components/TaskTable.tsx
-
 import React from 'react';
 import type { Task } from '../constants/types';
 
-
 interface TaskTableProps {
   tasks: Task[];
-  // Later we might add props like:
-  // onEditTask(id: string)
-  // onDeleteTask(id: string)
+  searchQuery: string;
+  statusFilter: string | 'all';
+  sortBy: 'title' | 'status' | 'priority' | 'dueDate';
+  sortDirection: 'asc' | 'desc';
+  onSearchChange: (value: string) => void;
+  onStatusFilterChange: (value: string | 'all') => void;
+  onCreateClick: () => void;
+  onEditTask: (task: Task) => void;
+  onRequestDeleteTask: (task: Task) => void;
+  onSortChange: (field: 'title' | 'status' | 'priority' | 'dueDate') => void;
 }
 
-export const TaskTable: React.FC<TaskTableProps> = ({ tasks }) => {
-  return (
-    <div
-      style={{
-        padding: '16px',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-      }}
-    >
-      <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Tasks</h2>
+const sortIndicator = (
+  field: 'title' | 'status' | 'priority' | 'dueDate',
+  sortBy: string,
+  dir: 'asc' | 'desc'
+) => {
+  if (field !== sortBy) return null;
+  return dir === 'asc' ? ' ▲' : ' ▼';
+};
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+export const TaskTable: React.FC<TaskTableProps> = ({
+  tasks,
+  searchQuery,
+  statusFilter,
+  sortBy,
+  sortDirection,
+  onSearchChange,
+  onStatusFilterChange,
+  onCreateClick,
+  onEditTask,
+  onRequestDeleteTask,
+  onSortChange,
+}) => {
+  return (
+    <div className="card">
+      <div className="table-toolbar">
+        <div className="table-toolbar-left">
+          <input
+            type="text"
+            className="input"
+            placeholder="Search by title or description..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+          <select
+            className="select"
+            value={statusFilter}
+            onChange={(e) =>
+              onStatusFilterChange(e.target.value as string | 'all')
+            }
+          >
+            <option value="all">All statuses</option>
+            <option value="todo">To do</option>
+            <option value="in_progress">In progress</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+        <div className="table-toolbar-right">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={onCreateClick}
+          >
+            Create task
+          </button>
+        </div>
+      </div>
+
+      <h2 className="card-title">Tasks</h2>
+
+      <div className="table-wrapper">
+        <table className="task-table">
           <thead>
             <tr>
-              <th style={thStyle}>Title</th>
-              <th style={thStyle}>Status</th>
-              <th style={thStyle}>Priority</th>
-              <th style={thStyle}>Assignee</th>
-              <th style={thStyle}>Due date</th>
-              <th style={thStyle}>Actions</th>
+              <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => onSortChange('title')}
+              >
+                Title{sortIndicator('title', sortBy, sortDirection)}
+              </th>
+              <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => onSortChange('status')}
+              >
+                Status{sortIndicator('status', sortBy, sortDirection)}
+              </th>
+              <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => onSortChange('priority')}
+              >
+                Priority{sortIndicator('priority', sortBy, sortDirection)}
+              </th>
+              <th>Assignee</th>
+              <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => onSortChange('dueDate')}
+              >
+                Due date{sortIndicator('dueDate', sortBy, sortDirection)}
+              </th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {tasks.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '12px', textAlign: 'center', color: '#777' }}>
+                <td colSpan={6} className="table-empty">
                   No tasks yet.
                 </td>
               </tr>
             ) : (
               tasks.map((task) => (
                 <tr key={task.id}>
-                  <td style={tdStyle}>{task.title}</td>
-                  <td style={tdStyle}>{task.status}</td>
-                  <td style={tdStyle}>{task.priority ?? '-'}</td>
-                  <td style={tdStyle}>{task.assignee ?? '-'}</td>
-                  <td style={tdStyle}>{task.dueDate ?? '-'}</td>
-                  <td style={tdStyle}>
-                    {/* Later these buttons will call edit/delete handlers */}
-                    <button style={linkButtonStyle} type="button">
-                      Edit
-                    </button>
-                    <button style={linkButtonStyle} type="button">
-                      Delete
-                    </button>
+                  <td>{task.title}</td>
+                  <td>{task.status}</td>
+                  <td>{task.priority ?? '-'}</td>
+                  <td>{task.assignee ?? '-'}</td>
+                  <td>{task.dueDate ?? '-'}</td>
+                  <td>
+                    <div className="table-actions">
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => onEditTask(task)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="link-button danger"
+                        onClick={() => onRequestDeleteTask(task)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -67,26 +147,4 @@ export const TaskTable: React.FC<TaskTableProps> = ({ tasks }) => {
       </div>
     </div>
   );
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '8px',
-  borderBottom: '1px solid #ddd',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '8px',
-  borderBottom: '1px solid #eee',
-  verticalAlign: 'top',
-};
-
-const linkButtonStyle: React.CSSProperties = {
-  border: 'none',
-  background: 'none',
-  color: '#1976d2',
-  padding: 0,
-  marginRight: '8px',
-  cursor: 'pointer',
 };

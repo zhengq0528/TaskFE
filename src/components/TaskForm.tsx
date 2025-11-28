@@ -1,172 +1,234 @@
 // src/components/TaskForm.tsx
+import React, { useEffect, useState } from 'react';
+import type { Task, TaskCreateInput, TaskPriority, TaskStatus } from '../constants/types';
 
-import React from 'react';
+type TaskFormMode = 'create' | 'edit';
 
 interface TaskFormProps {
-  // Later we will pass a Task when editing, and maybe a selectedTaskId.
-  onCreateTask: () => void;
-  onUpdateTask: () => void;
-  onClearSelection: () => void;
+  isOpen: boolean;
+  mode: TaskFormMode;
+  initialTask: Task | null;
+  onSubmit: (input: TaskCreateInput) => Promise<void> | void;
+  onClose: () => void;
 }
 
+const DEFAULT_STATUS: TaskStatus = 'todo';
+const DEFAULT_PRIORITY: TaskPriority = 'medium';
+
 export const TaskForm: React.FC<TaskFormProps> = ({
-  onCreateTask,
-  onUpdateTask,
-  onClearSelection,
+  isOpen,
+  mode,
+  initialTask,
+  onSubmit,
+  onClose,
 }) => {
-  // For now, this form is purely visual. No local state or submit handler yet.
-  // We will add controlled inputs and call onCreateTask/onUpdateTask later.
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState<TaskStatus>(DEFAULT_STATUS);
+  const [priority, setPriority] = useState<TaskPriority>(DEFAULT_PRIORITY);
+  const [dueDate, setDueDate] = useState<string>('');
+  const [assignee, setAssignee] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  // Populate form when opening in edit mode
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (mode === 'edit' && initialTask) {
+      setTitle(initialTask.title);
+      setDescription(initialTask.description ?? '');
+      setStatus(initialTask.status);
+      setPriority(initialTask.priority ?? DEFAULT_PRIORITY);
+      setDueDate(initialTask.dueDate ?? '');
+      setAssignee(initialTask.assignee ?? '');
+    } else {
+      // create mode
+      resetForm();
+    }
+  }, [isOpen, mode, initialTask]);
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setStatus(DEFAULT_STATUS);
+    setPriority(DEFAULT_PRIORITY);
+    setDueDate('');
+    setAssignee('');
+    setLocalError(null);
+  };
+
+  const handleSubmit = async () => {
+    setLocalError(null);
+
+    if (!title.trim()) {
+      setLocalError('Title is required.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload: TaskCreateInput = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        status,
+        priority,
+        assignee: assignee.trim() || undefined,
+        dueDate: dueDate || null,
+      };
+
+      await onSubmit(payload);
+      if (mode === 'create') {
+        resetForm();
+      }
+      onClose();
+    } catch (err) {
+      setLocalError('Failed to save task. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        padding: '16px',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-      }}
-    >
-      <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Create / Edit Task</h2>
-
-      <form
-        // Prevent actual submit for now
-        onSubmit={(e) => e.preventDefault()}
-        style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
-      >
-        <div>
-          <label
-            htmlFor="task-title"
-            style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}
-          >
-            Title
-          </label>
-          <input
-            id="task-title"
-            type="text"
-            placeholder="Task title"
-            style={inputStyle}
-          />
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">
+            {mode === 'create' ? 'Create Task' : 'Edit Task'}
+          </h2>
+          <button className="modal-close" onClick={onClose} type="button">
+            ×
+          </button>
         </div>
 
-        <div>
-          <label
-            htmlFor="task-description"
-            style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}
-          >
-            Description
-          </label>
-          <textarea
-            id="task-description"
-            placeholder="Task description"
-            rows={3}
-            style={{ ...inputStyle, resize: 'vertical' }}
-          />
-        </div>
+        {localError && (
+          <p style={{ color: 'red', fontSize: '0.85rem', marginBottom: 8 }}>
+            {localError}
+          </p>
+        )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-          <div>
-            <label
-              htmlFor="task-status"
-              style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}
-            >
-              Status
+        <form onSubmit={(e) => e.preventDefault()}>
+          <div className="field">
+            <label htmlFor="task-title" className="field-label">
+              Title <span style={{ color: 'red' }}>*</span>
             </label>
-            <select id="task-status" style={inputStyle}>
-              <option value="todo">To do</option>
-              <option value="in_progress">In progress</option>
-              <option value="done">Done</option>
-            </select>
+            <input
+              id="task-title"
+              type="text"
+              placeholder="Task title"
+              className="input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
           </div>
 
-          <div>
-            <label
-              htmlFor="task-priority"
-              style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}
-            >
-              Priority
+          <div className="field">
+            <label htmlFor="task-description" className="field-label">
+              Description
             </label>
-            <select id="task-priority" style={inputStyle}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
+            <textarea
+              id="task-description"
+              placeholder="Task description"
+              rows={3}
+              className="textarea"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
-        </div>
 
-        <div>
-          <label
-            htmlFor="task-due-date"
-            style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: '8px',
+            }}
           >
-            Due date
-          </label>
-          <input id="task-due-date" type="date" style={inputStyle} />
-        </div>
+            <div className="field">
+              <label htmlFor="task-status" className="field-label">
+                Status
+              </label>
+              <select
+                id="task-status"
+                className="select"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as TaskStatus)}
+              >
+                <option value="todo">To do</option>
+                <option value="in_progress">In progress</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
 
-        <div>
-          <label
-            htmlFor="task-assignee"
-            style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}
-          >
-            Assignee
-          </label>
-          <input
-            id="task-assignee"
-            type="text"
-            placeholder="Who is responsible?"
-            style={inputStyle}
-          />
-        </div>
+            <div className="field">
+              <label htmlFor="task-priority" className="field-label">
+                Priority
+              </label>
+              <select
+                id="task-priority"
+                className="select"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as TaskPriority)}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-          <button
-            type="button"
-            onClick={onCreateTask}
-            style={primaryButtonStyle}
-          >
-            Save as new
-          </button>
-          <button
-            type="button"
-            onClick={onUpdateTask}
-            style={secondaryButtonStyle}
-          >
-            Update existing
-          </button>
-          <button
-            type="button"
-            onClick={onClearSelection}
-            style={secondaryButtonStyle}
-          >
-            Clear
-          </button>
-        </div>
-      </form>
+          <div className="field">
+            <label htmlFor="task-due-date" className="field-label">
+              Due date
+            </label>
+            <input
+              id="task-due-date"
+              type="date"
+              className="input"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="task-assignee" className="field-label">
+              Assignee
+            </label>
+            <input
+              id="task-assignee"
+              type="text"
+              placeholder="Who is responsible?"
+              className="input"
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+            />
+          </div>
+
+          <div className="btn-row">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="btn btn-primary"
+              disabled={submitting}
+            >
+              {submitting
+                ? 'Saving…'
+                : mode === 'create'
+                ? 'Create task'
+                : 'Save changes'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn btn-outline"
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
-};
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '8px',
-  borderRadius: '4px',
-  border: '1px solid #ccc',
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  borderRadius: '4px',
-  border: 'none',
-  backgroundColor: '#1976d2',
-  color: '#fff',
-  cursor: 'pointer',
-};
-
-const secondaryButtonStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  borderRadius: '4px',
-  border: '1px solid #1976d2',
-  backgroundColor: '#fff',
-  color: '#1976d2',
-  cursor: 'pointer',
 };

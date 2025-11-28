@@ -1,83 +1,212 @@
-// src/components/TaskDashboard.tsx
-
-import React, { useState } from 'react';
-import type { Task } from '../constants/types';
-import { TaskFilters } from './TaskFilters';
+import React, { useEffect, useState } from 'react';
+import type { Task, TaskCreateInput } from '../constants/types';
 import { TaskStats } from './TaskStats';
 import { TaskTable } from './TaskTable';
 import { TaskForm } from './TaskForm';
+import { ConfirmDialog } from './ConfirmDialog';
+import { fetchTasks, createTask, updateTask, deleteTask } from '../services/tasksApi';
 
-const INITIAL_TASKS: Task[] = [
-  {
-    id: '1',
-    title: 'Sample task: set up project',
-    description: 'Initial placeholder task',
-    status: 'in_progress',
-    priority: 'high',
-    assignee: 'You',
-  },
-  {
-    id: '2',
-    title: 'Sample task: design API',
-    status: 'todo',
-    priority: 'medium',
-  },
-];
+type SortField = 'title' | 'status' | 'priority' | 'dueDate';
+type SortDirection = 'asc' | 'desc';
 
 export const TaskDashboard: React.FC = () => {
-  // For now this is just local state with dummy data.
-  // Later we will replace with REST API + WebSocket.
-  const [tasks] = useState<Task[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Placeholder for selected filters.
-  // Later we will implement real filtering logic.
-  const [statusFilter] = useState<string | 'all'>('all');
-  const [searchQuery] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+
+  const [sortBy, setSortBy] = useState<SortField>('title');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchTasks();
+        setTasks(data);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to load tasks.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const openCreateModal = () => {
+    setEditingTask(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (task: Task) => {
+    setEditingTask(task);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingTask(null);
+  };
+
+  const handleCreateTask = async (input: TaskCreateInput) => {
+    const created = await createTask(input);
+    setTasks((prev) => [...prev, created]);
+  };
+
+  const handleUpdateTask = async (input: TaskCreateInput) => {
+    if (!editingTask) return;
+    const updated = await updateTask(editingTask.id, input);
+    setTasks((prev) =>
+      prev.map((t) => (t.id === updated.id ? updated : t))
+    );
+  };
+
+  const handleRequestDeleteTask = (task: Task) => {
+    setDeleteTarget(task);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteTask(deleteTarget.id);
+      setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+    } catch (err) {
+      console.error(err);
+      setError('Failed to delete task.');
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteTarget(null);
+  };
+
+  const handleSortChange = (field: SortField) => {
+    setSortBy((prevField) => {
+      if (prevField === field) {
+        // just flip direction
+        setSortDirection((prevDir) => (prevDir === 'asc' ? 'desc' : 'asc'));
+        return prevField;
+      }
+      // new field defaults to asc
+      setSortDirection('asc');
+      return field;
+    });
+  };
+
+  const filteredTasks = tasks.filter((task) => {
+    const matchesStatus =
+      statusFilter === 'all' ? true : task.status === statusFilter;
+
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      task.title.toLowerCase().includes(q) ||
+      (task.description ?? '').toLowerCase().includes(q);
+
+    return matchesStatus && matchesSearch;
+  });
+
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    const dir = sortDirection === 'asc' ? 1 : -1;
+
+    const getFieldValue = (t: Task): string => {
+      switch (sortBy) {
+        case 'title':
+          return t.title.toLowerCase();
+        case 'status':
+          return t.status.toLowerCase();
+        case 'priority':
+          return (t.priority ?? '').toLowerCase();
+        case 'dueDate':
+          return t.dueDate ?? '';
+        default:
+          return '';
+      }
+    };
+
+    const va = getFieldValue(a);
+    const vb = getFieldValue(b);
+
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
 
   return (
-    <main style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-      <header style={{ marginBottom: '24px' }}>
-        <h1 style={{ margin: 0 }}>Task Dashboard</h1>
-        <p style={{ marginTop: '8px', color: '#555' }}>
-          This is a placeholder UI. Later we will connect it to the Node.js backend
-          with REST and WebSockets.
+    <main className="dashboard">
+      <header className="dashboard-header">
+        <h1 className="dashboard-title">Task Dashboard</h1>
+        <p className="dashboard-subtitle">
+          The dashboard is backed by a Node.js REST API. Tasks are stored
+          in-memory on the server for this assessment.
         </p>
+        {error && (
+          <p style={{ color: 'red', marginTop: 8, fontSize: '0.9rem' }}>
+            {error}
+          </p>
+        )}
       </header>
 
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr',
-          gap: '16px',
-          marginBottom: '16px',
-        }}
-      >
-        <TaskFilters
-          statusFilter={statusFilter}
-          searchQuery={searchQuery}
-          // Later we will pass real setters / handlers here
-          onStatusFilterChange={() => {}}
-          onSearchQueryChange={() => {}}
-        />
+      {/* Stats above the table, full width */}
+      <section className="dashboard-main" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <TaskStats tasks={sortedTasks} />
 
-        <TaskStats tasks={tasks} />
+        <div>
+          {loading ? (
+            <div className="card">
+              <p>Loading tasks…</p>
+            </div>
+          ) : (
+            <TaskTable
+              tasks={sortedTasks}
+              searchQuery={searchQuery}
+              statusFilter={statusFilter}
+              sortBy={sortBy}
+              sortDirection={sortDirection}
+              onSearchChange={setSearchQuery}
+              onStatusFilterChange={setStatusFilter}
+              onCreateClick={openCreateModal}
+              onEditTask={openEditModal}
+              onRequestDeleteTask={handleRequestDeleteTask}
+              onSortChange={handleSortChange}
+            />
+          )}
+        </div>
       </section>
 
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '3fr 2fr',
-          gap: '16px',
-        }}
-      >
-        <TaskTable tasks={tasks} />
-        <TaskForm
-          // Placeholder callbacks for now – we’ll implement later
-          onCreateTask={() => {}}
-          onUpdateTask={() => {}}
-          onClearSelection={() => {}}
-        />
-      </section>
+      {/* Modal for create/edit */}
+      <TaskForm
+        isOpen={isModalOpen}
+        mode={editingTask ? 'edit' : 'create'}
+        initialTask={editingTask}
+        onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
+        onClose={closeModal}
+      />
+
+      {/* Small popup for delete */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Delete task"
+        message={
+          deleteTarget
+            ? `Are you sure you want to delete "${deleteTarget.title}"?`
+            : ''
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </main>
   );
 };

@@ -1,13 +1,13 @@
-# 🖥️ Task Dashboard Frontend (React + TypeScript + Vite)
+# Task Dashboard Frontend (React + TypeScript + Vite)
 
 This is the frontend UI for the Task Dashboard application.  
 It is built using React, TypeScript, and Vite.
 
 ---
 
-## 🚀 How to Run the Frontend
+## How to Run the Frontend
 
-### 1️⃣ Navigate into the project folder
+### Navigate into the project folder
 
 ```bash
 cd TaskFE
