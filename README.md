@@ -1,18 +1,43 @@
-# Task Dashboard Frontend (React + TypeScript + Vite)
+# TaskFE — Frontend (React + TypeScript + Vite)
 
-This is the frontend UI for the Task Dashboard application.  
-It is built using React, TypeScript, and Vite.
+A simple frontend dashboard for managing tasks.  
+Supports CRUD UI, sorting, filtering, tags, CSV import/export, and optional WebSocket updates.
 
 ---
 
-## How to Run the Frontend
+## 📦 Libraries Used
 
-### Navigate into the project folder
+- **React 18**
+- **TypeScript**
+- **Vite**
+- **Axios** – API requests
+- **PapaParse** – CSV import/export
+- **FileSaver** – CSV download
+- **@testing-library/react** – Component testing
+- **@testing-library/jest-dom** – Test matchers
+- **Vitest** – Test runner
 
+---
+
+##  Setup (from scratch)
+
+### 1. Install dependencies
 ```bash
-cd TaskFE
-
 npm install
 
 npm run dev
 
+http://localhost:5173
+```
+
+### 2. Testing
+```bash 
+
+npm test
+
+```
+
+## API config
+
+VITE_API_BASE_URL=http://localhost:4000
+VITE_API_BASE_URL=https://your-backend-url.up.railway.app
