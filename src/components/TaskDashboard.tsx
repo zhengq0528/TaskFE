@@ -8,7 +8,7 @@ import { TaskForm } from './TaskForm';
 import { ConfirmDialog } from './ConfirmDialog';
 import { fetchTasks, createTask, updateTask, deleteTask } from '../services/tasksApi';
 import { io, Socket } from 'socket.io-client';
-import { BASE_URL } from '../config/api';
+import { WS_URL } from '../config/api';
 
 export const TaskDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -21,6 +21,7 @@ export const TaskDashboard: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
 
   const [sortBy, setSortBy] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -30,7 +31,7 @@ export const TaskDashboard: React.FC = () => {
 
   useEffect(() => {
     // Open WebSocket connection to backend
-    const socket: Socket = io(BASE_URL, {
+    const socket: Socket = io(WS_URL, {
       transports: ['websocket'], // prefer websocket
     });
 
@@ -130,6 +131,37 @@ export const TaskDashboard: React.FC = () => {
     }
   };
 
+  // Bulk delete confirm open
+  const openBulkDeleteConfirm = () => {
+    if (selectedTaskIds.length === 0) return;
+    setIsBulkDeleteConfirmOpen(true);
+  };
+
+  // Bulk delete actual delete (after confirmation)
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.length === 0) return;
+
+    try {
+      for (const id of selectedTaskIds) {
+        await deleteTask(id);
+      }
+      setTasks((prev) => prev.filter((t) => !selectedTaskIds.includes(t.id)));
+      setSelectedTaskIds([]);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to bulk delete tasks.');
+    } finally {
+      setIsBulkDeleteConfirmOpen(false);
+    }
+  };
+
+  const cancelBulkDelete = () => {
+    setIsBulkDeleteConfirmOpen(false);
+  };
+
+
+
   const handleCancelDelete = () => {
     setDeleteTarget(null);
   };
@@ -163,22 +195,6 @@ export const TaskDashboard: React.FC = () => {
       setSelectedTaskIds((prev) =>
         Array.from(new Set([...prev, ...visibleIds]))
       );
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedTaskIds.length === 0) return;
-
-    try {
-      for (const id of selectedTaskIds) {
-        await deleteTask(id);
-      }
-      setTasks((prev) => prev.filter((t) => !selectedTaskIds.includes(t.id)));
-      setSelectedTaskIds([]);
-      setError(null);
-    } catch (err) {
-      console.error(err);
-      setError('Failed to bulk delete tasks.');
     }
   };
 
@@ -315,7 +331,7 @@ export const TaskDashboard: React.FC = () => {
               onSortChange={handleSortChange}
               onToggleTaskSelect={handleToggleTaskSelect}
               onToggleAllVisible={handleToggleAllVisible}
-              onBulkDelete={handleBulkDelete}
+              onBulkDelete={openBulkDeleteConfirm}
               onExportCsv={handleExportCsv}
               onImportCsv={handleImportCsv}
             />
@@ -345,6 +361,16 @@ export const TaskDashboard: React.FC = () => {
         cancelLabel="Cancel"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+
+      <ConfirmDialog
+        isOpen={isBulkDeleteConfirmOpen}
+        title="Bulk delete tasks"
+        message={`Are you sure you want to delete ${selectedTaskIds.length} tasks? This action cannot be undone.`}
+        confirmLabel="Delete all"
+        cancelLabel="Cancel"
+        onConfirm={handleBulkDelete}
+        onCancel={cancelBulkDelete}
       />
     </main>
   );
