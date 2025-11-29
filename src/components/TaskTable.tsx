@@ -1,3 +1,4 @@
+// src/components/TaskTable.tsx
 import React from 'react';
 import type { Task } from '../constants/types';
 
@@ -26,6 +27,7 @@ interface TaskTableProps {
   onToggleAllVisible: () => void;
   onBulkDelete: () => void;
   onExportCsv: () => void;
+  onExportSelectedCsv: () => void;
   onImportCsv: (file: File) => void;
 }
 
@@ -68,11 +70,10 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   onToggleAllVisible,
   onBulkDelete,
   onExportCsv,
+  onExportSelectedCsv,
   onImportCsv,
 }) => {
-  const allVisibleSelected =
-    tasks.length > 0 && tasks.every((t) => selectedTaskIds.includes(t.id));
-  const someSelected = selectedTaskIds.length > 0;
+  const hasSelection = selectedTaskIds.length > 0;
 
   return (
     <div className="card">
@@ -103,8 +104,11 @@ export const TaskTable: React.FC<TaskTableProps> = ({
             <option value="done">Done</option>
           </select>
 
-          {/* Import CSV */}
-          <label className="btn btn-outline" style={{ cursor: 'pointer' }}>
+          {/* Import */}
+          <label
+            className="btn btn-outline"
+            style={{ cursor: 'pointer' }}
+          >
             Import CSV
             <input
               type="file"
@@ -113,13 +117,12 @@ export const TaskTable: React.FC<TaskTableProps> = ({
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) onImportCsv(file);
-                // allow re-selecting the same file
                 e.target.value = '';
               }}
             />
           </label>
 
-          {/* Export CSV */}
+          {/* Export ALL */}
           <button
             type="button"
             className="btn btn-outline"
@@ -129,12 +132,22 @@ export const TaskTable: React.FC<TaskTableProps> = ({
             Export CSV
           </button>
 
+          {/* Export SELECTED */}
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={onExportSelectedCsv}
+            disabled={!hasSelection}
+          >
+            Export selected to CSV
+          </button>
+
           {/* Bulk delete */}
           <button
             type="button"
             className="btn btn-outline"
+            disabled={!hasSelection}
             onClick={onBulkDelete}
-            disabled={!someSelected}
           >
             Bulk delete
           </button>
@@ -156,11 +169,13 @@ export const TaskTable: React.FC<TaskTableProps> = ({
         <table className="task-table">
           <thead>
             <tr>
-              {/* master checkbox */}
               <th>
                 <input
                   type="checkbox"
-                  checked={allVisibleSelected}
+                  checked={
+                    tasks.length > 0 &&
+                    tasks.every((t) => selectedTaskIds.includes(t.id))
+                  }
                   onChange={onToggleAllVisible}
                 />
               </th>
@@ -214,93 +229,88 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                 </td>
               </tr>
             ) : (
-              tasks.map((task) => {
-                const checked = selectedTaskIds.includes(task.id);
-                return (
-                  <tr key={task.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => onToggleTaskSelect(task.id)}
-                      />
-                    </td>
-                    <td>{task.title}</td>
-                    <td>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          maxWidth: 160,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          color: '#64748b',
-                          fontSize: '0.85rem',
-                        }}
-                        title={task.description ?? ''}
-                      >
-                        {task.description ?? '-'}
-                      </span>
-                    </td>
-                    <td>
+              tasks.map((task) => (
+                <tr key={task.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.includes(task.id)}
+                      onChange={() => onToggleTaskSelect(task.id)}
+                    />
+                  </td>
+                  <td>{task.title}</td>
+                  <td>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        maxWidth: 160,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        color: '#64748b',
+                        fontSize: '0.85rem',
+                      }}
+                      title={task.description ?? ''}
+                    >
+                      {task.description ?? '-'}
+                    </span>
+                  </td>
+                  <td>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 4,
+                      }}
+                    >
                       {task.tags && task.tags.length > 0 ? (
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: 4,
-                          }}
-                        >
-                          {task.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              style={{
-                                borderRadius: 999,
-                                padding: '2px 8px',
-                                backgroundColor: '#e0f2fe',
-                                color: '#0369a1',
-                                fontSize: '0.75rem',
-                              }}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                        task.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            style={{
+                              borderRadius: 999,
+                              padding: '2px 8px',
+                              backgroundColor: '#e0f2fe',
+                              color: '#0369a1',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))
                       ) : (
-                        <span
-                          style={{ color: '#cbd5f5', fontSize: '0.8rem' }}
-                        >
-                          —
+                        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
+                          -
                         </span>
                       )}
-                    </td>
-                    <td>{task.status}</td>
-                    <td>{task.priority ?? '-'}</td>
-                    <td>{task.assignee ?? '-'}</td>
-                    <td>{task.dueDate ?? '-'}</td>
-                    <td>{formatDateTime(task.createdAt)}</td>
-                    <td>{formatDateTime(task.updatedAt)}</td>
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          type="button"
-                          className="link-button"
-                          onClick={() => onEditTask(task)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="link-button danger"
-                          onClick={() => onRequestDeleteTask(task)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
+                    </div>
+                  </td>
+                  <td>{task.status}</td>
+                  <td>{task.priority ?? '-'}</td>
+                  <td>{task.assignee ?? '-'}</td>
+                  <td>{task.dueDate ?? '-'}</td>
+                  <td>{formatDateTime(task.createdAt)}</td>
+                  <td>{formatDateTime(task.updatedAt)}</td>
+                  <td>
+                    <div className="table-actions">
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => onEditTask(task)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="link-button danger"
+                        onClick={() => onRequestDeleteTask(task)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

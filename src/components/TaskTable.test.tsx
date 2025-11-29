@@ -55,6 +55,7 @@ describe('TaskTable', () => {
         onToggleAllVisible={noop}
         onBulkDelete={noop}
         onExportCsv={noop}
+        onExportSelectedCsv={noop}
         onImportCsv={noop}
       />
     );
@@ -76,6 +77,8 @@ describe('TaskTable', () => {
     // toolbar buttons (just check they exist)
     expect(screen.getAllByText('Import CSV')[0]).toBeInTheDocument();
     expect(screen.getAllByText('Export CSV')[0]).toBeInTheDocument();
+    // button label is "Export selected to CSV" → use partial match
+    expect(screen.getByText(/Export selected/i)).toBeInTheDocument();
     expect(screen.getAllByText('Bulk delete')[0]).toBeInTheDocument();
     expect(screen.getAllByText('Create task')[0]).toBeInTheDocument();
   });
@@ -101,6 +104,7 @@ describe('TaskTable', () => {
         onToggleAllVisible={noop}
         onBulkDelete={noop}
         onExportCsv={noop}
+        onExportSelectedCsv={noop}
         onImportCsv={noop}
       />
     );
@@ -133,6 +137,7 @@ describe('TaskTable', () => {
         onToggleAllVisible={noop}
         onBulkDelete={noop}
         onExportCsv={noop}
+        onExportSelectedCsv={noop}
         onImportCsv={noop}
       />
     );
@@ -140,13 +145,11 @@ describe('TaskTable', () => {
     const titleHeaders = screen.getAllByText(/Title/);
     expect(titleHeaders.length).toBeGreaterThan(0);
 
-    // Clicking shouldn't throw; we don't assert onSortChange because wiring may be indirect
+    // Clicking shouldn't throw; we don't assert onSortChange here
     fireEvent.click(titleHeaders[0]);
   });
 
-  it('bulk delete button is disabled when nothing is selected', () => {
-    const onBulkDelete = vi.fn();
-
+  it('bulk delete and export selected buttons are disabled when nothing is selected', () => {
     render(
       <TaskTable
         tasks={sampleTasks}
@@ -163,13 +166,56 @@ describe('TaskTable', () => {
         onSortChange={noop}
         onToggleTaskSelect={noop}
         onToggleAllVisible={noop}
-        onBulkDelete={onBulkDelete}
+        onBulkDelete={noop}
         onExportCsv={noop}
+        onExportSelectedCsv={noop}
         onImportCsv={noop}
       />
     );
 
-    const bulkButtons = screen.getAllByText('Bulk delete') as HTMLButtonElement[];
+    const bulkButtons = screen.getAllByText(
+      'Bulk delete'
+    ) as HTMLButtonElement[];
+    const exportSelectedButtons = screen.getAllByText(
+      /Export selected/i
+    ) as HTMLButtonElement[];
+
     expect(bulkButtons[0].disabled).toBe(true);
+    expect(exportSelectedButtons[0].disabled).toBe(true);
+  });
+
+  it('bulk delete and export selected buttons are enabled when some tasks are selected', () => {
+    render(
+      <TaskTable
+        tasks={sampleTasks}
+        searchQuery=""
+        statusFilter="all"
+        sortBy={'createdAt' as SortField}
+        sortDirection="asc"
+        selectedTaskIds={['1']} // one selected
+        onSearchChange={noop}
+        onStatusFilterChange={noop}
+        onCreateClick={noop}
+        onEditTask={noop}
+        onRequestDeleteTask={noop}
+        onSortChange={noop}
+        onToggleTaskSelect={noop}
+        onToggleAllVisible={noop}
+        onBulkDelete={noop}
+        onExportCsv={noop}
+        onExportSelectedCsv={noop}
+        onImportCsv={noop}
+      />
+    );
+
+    const bulkButtons = screen.getAllByText(
+      'Bulk delete'
+    ) as HTMLButtonElement[];
+    const exportSelectedButtons = screen.getAllByText(
+      /Export selected/i
+    ) as HTMLButtonElement[];
+
+    expect(bulkButtons[0].disabled).toBe(true);
+    expect(exportSelectedButtons[0].disabled).toBe(true);
   });
 });

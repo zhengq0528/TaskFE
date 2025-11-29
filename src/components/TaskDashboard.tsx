@@ -1,3 +1,4 @@
+// src/components/TaskDashboard.tsx
 import React, { useEffect, useState } from 'react';
 import type { Task, TaskCreateInput } from '../constants/types';
 import type { SortField } from './TaskTable';
@@ -6,7 +7,14 @@ import { TaskStats } from './TaskStats';
 import { TaskTable } from './TaskTable';
 import { TaskForm } from './TaskForm';
 import { ConfirmDialog } from './ConfirmDialog';
-import { fetchTasks, createTask, updateTask, deleteTask } from '../services/tasksApi';
+import {
+  fetchTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  bulkCreateTasks,
+  bulkDeleteTasks,
+} from '../services/tasksApi';
 import { io, Socket } from 'socket.io-client';
 import { WS_URL } from '../config/api';
 
@@ -21,25 +29,23 @@ export const TaskDashboard: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
-  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] =
+    useState(false);
 
   const [sortBy, setSortBy] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
-
-
+  // ---------------- WS ----------------
   useEffect(() => {
-    // Open WebSocket connection to backend
     const socket: Socket = io(WS_URL, {
-      transports: ['websocket'], // prefer websocket
+      transports: ['websocket'],
     });
 
     socket.on('connect', () => {
       console.log('Connected to WS:', socket.id);
     });
 
-    // If you implemented tasks:init in backend
     socket.on('tasks:init', (serverTasks: Task[]) => {
       setTasks(serverTasks);
     });
@@ -47,15 +53,13 @@ export const TaskDashboard: React.FC = () => {
     socket.on('task:created', (task: Task) => {
       setTasks((prev) => {
         const exists = prev.some((t) => t.id === task.id);
-        if (exists) return prev; // avoid duplicate if we also updated locally
+        if (exists) return prev;
         return [...prev, task];
       });
     });
 
     socket.on('task:updated', (task: Task) => {
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? task : t))
-      );
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
     });
 
     socket.on('task:deleted', ({ id }: { id: string }) => {
@@ -71,6 +75,7 @@ export const TaskDashboard: React.FC = () => {
     };
   }, []);
 
+  // ---------------- Initial load ----------------
   useEffect(() => {
     const load = async () => {
       try {
@@ -88,6 +93,7 @@ export const TaskDashboard: React.FC = () => {
     load();
   }, []);
 
+  // ---------------- Create / edit ----------------
   const openCreateModal = () => {
     setEditingTask(null);
     setIsModalOpen(true);
@@ -104,17 +110,17 @@ export const TaskDashboard: React.FC = () => {
   };
 
   const handleCreateTask = async (input: TaskCreateInput) => {
+    // We rely on WS 'task:created' to update UI
     await createTask(input);
   };
 
   const handleUpdateTask = async (input: TaskCreateInput) => {
     if (!editingTask) return;
     const updated = await updateTask(editingTask.id, input);
-    setTasks((prev) =>
-      prev.map((t) => (t.id === updated.id ? updated : t))
-    );
+    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
   };
 
+  // ---------------- Single delete ----------------
   const handleRequestDeleteTask = (task: Task) => {
     setDeleteTarget(task);
   };
@@ -123,6 +129,8 @@ export const TaskDashboard: React.FC = () => {
     if (!deleteTarget) return;
     try {
       await deleteTask(deleteTarget.id);
+      // WS will also remove it, but this keeps UI responsive even if WS is slow
+      setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id));
     } catch (err) {
       console.error(err);
       setError('Failed to delete task.');
@@ -131,21 +139,27 @@ export const TaskDashboard: React.FC = () => {
     }
   };
 
-  // Bulk delete confirm open
+  const handleCancelDelete = () => {
+    setDeleteTarget(null);
+  };
+
+  // ---------------- Bulk delete ----------------
   const openBulkDeleteConfirm = () => {
     if (selectedTaskIds.length === 0) return;
     setIsBulkDeleteConfirmOpen(true);
   };
 
-  // Bulk delete actual delete (after confirmation)
   const handleBulkDelete = async () => {
     if (selectedTaskIds.length === 0) return;
 
     try {
-      for (const id of selectedTaskIds) {
-        await deleteTask(id);
-      }
-      setTasks((prev) => prev.filter((t) => !selectedTaskIds.includes(t.id)));
+      const { deletedIds } = await bulkDeleteTasks(selectedTaskIds);
+
+      // Again, WS will also handle this, but we optimistically update UI
+      const idsToRemove =
+        deletedIds && deletedIds.length > 0 ? deletedIds : selectedTaskIds;
+
+      setTasks((prev) => prev.filter((t) => !idsToRemove.includes(t.id)));
       setSelectedTaskIds([]);
       setError(null);
     } catch (err) {
@@ -160,18 +174,11 @@ export const TaskDashboard: React.FC = () => {
     setIsBulkDeleteConfirmOpen(false);
   };
 
-
-
-  const handleCancelDelete = () => {
-    setDeleteTarget(null);
-  };
-
+  // ---------------- Sorting & selection ----------------
   const handleSortChange = (field: SortField) => {
     if (sortBy === field) {
-      // same column → flip direction
       setSortDirection((prevDir) => (prevDir === 'asc' ? 'desc' : 'asc'));
     } else {
-      // new column → set field + reset to asc
       setSortBy(field);
       setSortDirection('asc');
     }
@@ -190,7 +197,9 @@ export const TaskDashboard: React.FC = () => {
       visibleIds.every((id) => selectedTaskIds.includes(id));
 
     if (allSelected) {
-      setSelectedTaskIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+      setSelectedTaskIds((prev) =>
+        prev.filter((id) => !visibleIds.includes(id))
+      );
     } else {
       setSelectedTaskIds((prev) =>
         Array.from(new Set([...prev, ...visibleIds]))
@@ -198,16 +207,40 @@ export const TaskDashboard: React.FC = () => {
     }
   };
 
-  const handleExportCsv = () => {
-    if (sortedTasks.length === 0) return;
+  // ---------------- CSV export/import ----------------
 
-    const csv = tasksToCsv(sortedTasks);
+  // Export ALL tasks (not just filtered)
+  const handleExportCsv = () => {
+    if (tasks.length === 0) return;
+
+    const csv = tasksToCsv(tasks);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'tasks.csv');
+    link.setAttribute('download', 'tasks-all.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  };
+
+  // Export SELECTED tasks only
+  const handleExportSelectedCsv = () => {
+    if (selectedTaskIds.length === 0) return;
+
+    const selected = tasks.filter((t) => selectedTaskIds.includes(t.id));
+    if (selected.length === 0) return;
+
+    const csv = tasksToCsv(selected);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'tasks-selected.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -228,12 +261,9 @@ export const TaskDashboard: React.FC = () => {
           return;
         }
 
-        const created: Task[] = [];
-        for (const input of inputs) {
-          await createTask(input);
-        }
+        // Use bulk create – WS will push created tasks
+        await bulkCreateTasks(inputs);
 
-        setTasks((prev) => [...prev, ...created]);
         setSelectedTaskIds([]);
         setError(null);
       } catch (err) {
@@ -245,9 +275,7 @@ export const TaskDashboard: React.FC = () => {
     reader.readAsText(file);
   };
 
-
-
-
+  // ---------------- Filtering & sorting ----------------
   const filteredTasks = tasks.filter((task) => {
     const matchesStatus =
       statusFilter === 'all' ? true : task.status === statusFilter;
@@ -291,6 +319,7 @@ export const TaskDashboard: React.FC = () => {
     return 0;
   });
 
+  // ---------------- Render ----------------
   return (
     <main className="dashboard">
       <header className="dashboard-header">
@@ -306,8 +335,10 @@ export const TaskDashboard: React.FC = () => {
         )}
       </header>
 
-      {/* Stats above the table, full width */}
-      <section className="dashboard-main" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <section
+        className="dashboard-main"
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
         <TaskStats tasks={sortedTasks} />
 
         <div>
@@ -333,13 +364,13 @@ export const TaskDashboard: React.FC = () => {
               onToggleAllVisible={handleToggleAllVisible}
               onBulkDelete={openBulkDeleteConfirm}
               onExportCsv={handleExportCsv}
+              onExportSelectedCsv={handleExportSelectedCsv}
               onImportCsv={handleImportCsv}
             />
           )}
         </div>
       </section>
 
-      {/* Modal for create/edit */}
       <TaskForm
         isOpen={isModalOpen}
         mode={editingTask ? 'edit' : 'create'}
@@ -348,7 +379,6 @@ export const TaskDashboard: React.FC = () => {
         onClose={closeModal}
       />
 
-      {/* Small popup for delete */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
         title="Delete task"
