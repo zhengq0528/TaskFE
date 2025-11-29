@@ -5,7 +5,7 @@ Supports CRUD UI, sorting, filtering, tags, CSV import/export, and optional WebS
 
 ---
 
-## 📦 Libraries Used
+##  Libraries Used
 
 - **React 18**
 - **TypeScript**
@@ -39,5 +39,6 @@ npm test
 
 ## API config
 
-VITE_API_BASE_URL=http://localhost:4000
-VITE_API_BASE_URL=https://your-backend-url.up.railway.app
+VITE_API_BASE_URL=http://localhost:4000  
+
+VITE_API_BASE_URL=https://taskfe-production.up.railway.app/
