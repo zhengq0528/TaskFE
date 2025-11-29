@@ -276,9 +276,24 @@ export const TaskDashboard: React.FC = () => {
   };
 
   // ---------------- Filtering & sorting ----------------
+  const isOverdue = (task: Task): boolean => {
+    if (!task.dueDate) return false;
+
+    const due = new Date(task.dueDate);
+    if (Number.isNaN(due.getTime())) return false;
+
+    const now = new Date();
+    // overdue = due date in the past AND not done
+    return due < now && task.status !== 'done';
+  };
+
   const filteredTasks = tasks.filter((task) => {
     const matchesStatus =
-      statusFilter === 'all' ? true : task.status === statusFilter;
+      statusFilter === 'all'
+        ? true
+        : statusFilter === 'overdue'
+          ? isOverdue(task)
+          : task.status === statusFilter;
 
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch =

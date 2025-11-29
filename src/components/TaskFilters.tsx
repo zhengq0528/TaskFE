@@ -71,6 +71,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
             <option value="todo">To do</option>
             <option value="in_progress">In progress</option>
             <option value="done">Done</option>
+            <option value="overdue">Overdue</option>
           </select>
         </div>
       </div>
