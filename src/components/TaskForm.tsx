@@ -71,14 +71,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
     const payload: TaskCreateInput = {
       title: title.trim(),
-      description: description.trim() || null,
+      description: description.trim() || "",
       status,
-      priority: priority || null,
-      assignee: assignee.trim() || null,
-      dueDate: dueDate || null,
+      priority: priority || "medium",
+      assignee: assignee.trim() || "",
+      dueDate: dueDate || "",
       tags: tags.length ? tags : [],
-      createdAt: initialTask?.createdAt ?? null,
-      updatedAt: initialTask?.updatedAt ?? null,
     };
 
     try {
