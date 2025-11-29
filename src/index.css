@@ -362,3 +362,77 @@ body {
   color: #6b7280;
   font-size: 0.85rem;
 }
+
+
+/* Grid layout inside the task form */
+.task-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+  row-gap: 12px;
+}
+
+/* Any field that should span full width */
+.task-form-field-full {
+  grid-column: 1 / -1;
+}
+
+.task-form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.form-label-muted {
+  font-weight: 400;
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+.required {
+  color: #ef4444;
+}
+
+/* Make description box bigger & nicer */
+.textarea {
+  font-family: inherit;
+  font-size: 0.95rem;
+  border-radius: 999px; /* if you prefer pill, change to 8px for a normal box */
+  border-radius: 12px;
+  border: 1px solid #cbd5f5;
+  padding: 8px 10px;
+  min-height: 120px;
+  resize: vertical;
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
+}
+
+/* Better spacing in modal body */
+.modal-body {
+  padding: 16px 24px 8px;
+}
+
+/* Footer buttons aligned right */
+.modal-footer {
+  padding: 12px 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Small screens: single column form */
+@media (max-width: 640px) {
+  .task-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

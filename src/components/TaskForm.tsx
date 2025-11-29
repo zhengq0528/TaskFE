@@ -1,19 +1,14 @@
 // src/components/TaskForm.tsx
 import React, { useEffect, useState } from 'react';
-import type { Task, TaskCreateInput, TaskPriority, TaskStatus } from '../constants/types';
-
-type TaskFormMode = 'create' | 'edit';
+import type { Task, TaskCreateInput } from '../constants/types';
 
 interface TaskFormProps {
   isOpen: boolean;
-  mode: TaskFormMode;
+  mode: 'create' | 'edit';
   initialTask: Task | null;
   onSubmit: (input: TaskCreateInput) => Promise<void> | void;
   onClose: () => void;
 }
-
-const DEFAULT_STATUS: TaskStatus = 'todo';
-const DEFAULT_PRIORITY: TaskPriority = 'medium';
 
 export const TaskForm: React.FC<TaskFormProps> = ({
   isOpen,
@@ -24,236 +19,220 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<TaskStatus>(DEFAULT_STATUS);
-  const [priority, setPriority] = useState<TaskPriority>(DEFAULT_PRIORITY);
-  const [dueDate, setDueDate] = useState<string>('');
-  const [assignee, setAssignee] = useState<string>('');
+  const [status, setStatus] = useState<'todo' | 'in_progress' | 'done'>('todo');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high' | ''>('medium');
+  const [dueDate, setDueDate] = useState('');
+  const [tagsInput, setTagsInput] = useState('');
+  const [assignee, setAssignee] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
-  const [tagsText, setTagsText] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-
-  // Populate form when opening in edit mode
+  // hydrate when opening / editing
   useEffect(() => {
     if (!isOpen) return;
 
-    if (mode === 'edit' && initialTask) {
-      setTitle(initialTask.title);
+    if (initialTask) {
+      setTitle(initialTask.title ?? '');
       setDescription(initialTask.description ?? '');
-      setStatus(initialTask.status);
-      setPriority(initialTask.priority ?? DEFAULT_PRIORITY);
+      setStatus(initialTask.status as 'todo' | 'in_progress' | 'done');
+      setPriority((initialTask.priority ?? 'medium') as 'low' | 'medium' | 'high');
       setDueDate(initialTask.dueDate ?? '');
       setAssignee(initialTask.assignee ?? '');
-      setTagsText((initialTask.tags ?? []).join(', '));
+      setTagsInput((initialTask.tags ?? []).join(', '));
     } else {
-      // create mode
-      resetForm();
+      // defaults for create
+      setTitle('');
+      setDescription('');
+      setStatus('todo');
+      setPriority('medium');
+      setDueDate('');
+      setAssignee('');
+      setTagsInput('');
+      setError(null);
     }
-  }, [isOpen, mode, initialTask]);
+  }, [isOpen, initialTask]);
 
-  const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setStatus(DEFAULT_STATUS);
-    setPriority(DEFAULT_PRIORITY);
-    setDueDate('');
-    setAssignee('');
-    setTagsText('');
-    setLocalError(null);
-  };
+  if (!isOpen) return null;
 
-  const handleSubmit = async () => {
-    setLocalError(null);
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!title.trim()) {
-      setLocalError('Title is required.');
+      setError('Title is required.');
       return;
     }
 
+    setError(null);
     setSubmitting(true);
+
+    const tags = tagsInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    const payload: TaskCreateInput = {
+      title: title.trim(),
+      description: description.trim() || null,
+      status,
+      priority: priority || null,
+      assignee: assignee.trim() || null,
+      dueDate: dueDate || null,
+      tags: tags.length ? tags : [],
+      createdAt: initialTask?.createdAt ?? null,
+      updatedAt: initialTask?.updatedAt ?? null,
+    };
+
     try {
-      const tagsArray =
-        tagsText
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean) || [];
-
-      const payload: TaskCreateInput = {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        status,
-        priority,
-        assignee: assignee.trim() || undefined,
-        dueDate: dueDate || "",
-        tags: tagsArray.length > 0 ? tagsArray : undefined,
-      };
-
       await onSubmit(payload);
-      if (mode === 'create') {
-        resetForm();
-      }
       onClose();
     } catch (err) {
-      setLocalError('Failed to save task. Please try again.');
+      console.error(err);
+      setError('Failed to save task. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
+  const titleText = mode === 'create' ? 'Create Task' : 'Edit Task';
+  const submitText = mode === 'create' ? 'Create task' : 'Save changes';
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="modal-title">
-            {mode === 'create' ? 'Create Task' : 'Edit Task'}
-          </h2>
-          <button className="modal-close" onClick={onClose} type="button">
+    <div className="modal-backdrop">
+      <div className="modal">
+        <header className="modal-header">
+          <h2 className="modal-title">{titleText}</h2>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Close"
+            onClick={onClose}
+          >
             ×
           </button>
-        </div>
+        </header>
 
-        {localError && (
-          <p style={{ color: 'red', fontSize: '0.85rem', marginBottom: 8 }}>
-            {localError}
-          </p>
-        )}
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            {error && (
+              <p className="form-error">
+                {error}
+              </p>
+            )}
 
-        <form onSubmit={(e) => e.preventDefault()}>
-          <div className="field">
-            <label htmlFor="task-title" className="field-label">
-              Title <span style={{ color: 'red' }}>*</span>
-            </label>
-            <input
-              id="task-title"
-              type="text"
-              placeholder="Task title"
-              className="input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
+            <div className="task-form-grid">
+              {/* Title */}
+              <div className="task-form-field task-form-field-full">
+                <label className="form-label">
+                  Title <span className="required">*</span>
+                </label>
+                <input
+                  className="input"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Short summary of the task"
+                />
+              </div>
 
-          <div className="field">
-            <label htmlFor="task-description" className="field-label">
-              Description
-            </label>
-            <textarea
-              id="task-description"
-              placeholder="Task description"
-              rows={3}
-              className="textarea"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
+              {/* Description – full width, taller textarea */}
+              <div className="task-form-field task-form-field-full">
+                <label className="form-label">Description</label>
+                <textarea
+                  className="textarea"
+                  rows={5}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Details, context, acceptance criteria..."
+                />
+              </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-              gap: '8px',
-            }}
-          >
-            <div className="field">
-              <label htmlFor="task-status" className="field-label">
-                Status
-              </label>
-              <select
-                id="task-status"
-                className="select"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as TaskStatus)}
-              >
-                <option value="todo">To do</option>
-                <option value="in_progress">In progress</option>
-                <option value="done">Done</option>
-              </select>
+              {/* Status */}
+              <div className="task-form-field">
+                <label className="form-label">Status</label>
+                <select
+                  className="select"
+                  value={status}
+                  onChange={(e) =>
+                    setStatus(e.target.value as 'todo' | 'in_progress' | 'done')
+                  }
+                >
+                  <option value="todo">To do</option>
+                  <option value="in_progress">In progress</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
+
+              {/* Priority */}
+              <div className="task-form-field">
+                <label className="form-label">Priority</label>
+                <select
+                  className="select"
+                  value={priority}
+                  onChange={(e) =>
+                    setPriority(e.target.value as 'low' | 'medium' | 'high' | '')
+                  }
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+
+              {/* Due date */}
+              <div className="task-form-field">
+                <label className="form-label">Due date</label>
+                <input
+                  className="input"
+                  type="date"
+                  value={dueDate || ''}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+
+              {/* Tags */}
+              <div className="task-form-field">
+                <label className="form-label">
+                  Tags <span className="form-label-muted">(comma - separated)</span>
+                </label>
+                <input
+                  className="input"
+                  type="text"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="e.g. backend, api, priority"
+                />
+              </div>
+
+              {/* Assignee – full width */}
+              <div className="task-form-field task-form-field-full">
+                <label className="form-label">Assignee</label>
+                <input
+                  className="input"
+                  type="text"
+                  value={assignee}
+                  onChange={(e) => setAssignee(e.target.value)}
+                  placeholder="Who is responsible?"
+                />
+              </div>
             </div>
-
-            <div className="field">
-              <label htmlFor="task-priority" className="field-label">
-                Priority
-              </label>
-              <select
-                id="task-priority"
-                className="select"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
           </div>
 
-          <div className="field">
-            <label htmlFor="task-due-date" className="field-label">
-              Due date
-            </label>
-            <input
-              id="task-due-date"
-              type="date"
-              className="input"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="task-tags" className="field-label">
-              Tags <span style={{ fontWeight: 400, color: '#64748b' }}>
-                (comma-separated)
-              </span>
-            </label>
-            <input
-              id="task-tags"
-              type="text"
-              placeholder="e.g. backend, api, priority-customer"
-              className="input"
-              value={tagsText}
-              onChange={(e) => setTagsText(e.target.value)}
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="task-assignee" className="field-label">
-              Assignee
-            </label>
-            <input
-              id="task-assignee"
-              type="text"
-              placeholder="Who is responsible?"
-              className="input"
-              value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
-            />
-          </div>
-
-          <div className="btn-row">
+          <footer className="modal-footer">
             <button
               type="button"
-              onClick={handleSubmit}
-              className="btn btn-primary"
-              disabled={submitting}
-            >
-              {submitting
-                ? 'Saving…'
-                : mode === 'create'
-                  ? 'Create task'
-                  : 'Save changes'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
               className="btn btn-outline"
+              onClick={onClose}
               disabled={submitting}
             >
               Cancel
             </button>
-          </div>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={submitting}
+            >
+              {submitText}
+            </button>
+          </footer>
         </form>
       </div>
     </div>
