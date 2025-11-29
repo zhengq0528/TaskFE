@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TaskDashboard } from './TaskDashboard';
 import type { Task } from '../constants/types';
+import type { Mock } from 'vitest';
 
 // -------------------- socket.io-client mock --------------------
 vi.mock('socket.io-client', () => {
@@ -58,7 +59,7 @@ const mockTasks: Task[] = [
 beforeEach(() => {
   vi.clearAllMocks();
   // cast so TS knows it's a vi mock
-  const fetchTasksMock = tasksApi.fetchTasks as unknown as vi.Mock;
+  const fetchTasksMock = tasksApi.fetchTasks as unknown as Mock;
   fetchTasksMock.mockResolvedValue(mockTasks);
 });
 
