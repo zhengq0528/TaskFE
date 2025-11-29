@@ -339,10 +339,6 @@ export const TaskDashboard: React.FC = () => {
     <main className="dashboard">
       <header className="dashboard-header">
         <h1 className="dashboard-title">Task Dashboard</h1>
-        <p className="dashboard-subtitle">
-          The dashboard is backed by a Node.js REST API. Tasks are stored
-          in-memory on the server for this assessment.
-        </p>
         {error && (
           <p style={{ color: 'red', marginTop: 8, fontSize: '0.9rem' }}>
             {error}
