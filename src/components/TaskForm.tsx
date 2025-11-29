@@ -125,10 +125,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                 <input
                   className="input"
                   type="text"
+                  maxLength={100}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Short summary of the task"
                 />
+                <div style={{ fontSize: '0.75rem', color: '#666', marginTop: 4 }}>
+                  {title.length}/100
+                </div>
               </div>
 
               {/* Description – full width, taller textarea */}
@@ -137,10 +141,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                 <textarea
                   className="textarea"
                   rows={5}
+                  maxLength={500}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Details, context, acceptance criteria..."
                 />
+                <div style={{ fontSize: '0.75rem', color: '#666', marginTop: 4 }}>
+                  {description.length}/500
+                </div>
               </div>
 
               {/* Status */}
