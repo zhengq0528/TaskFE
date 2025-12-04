@@ -10,9 +10,6 @@ Supports CRUD UI, sorting, filtering, tags, CSV import/export, and optional WebS
 - **React 18**
 - **TypeScript**
 - **Vite**
-- **Axios** – API requests
-- **PapaParse** – CSV import/export
-- **FileSaver** – CSV download
 - **@testing-library/react** – Component testing
 - **@testing-library/jest-dom** – Test matchers
 - **Vitest** – Test runner
